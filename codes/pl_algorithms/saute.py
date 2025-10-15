@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from .helpers import calculateMutualInformation, calculateCovariance, calculateEntropy, alternativeMutInfo, learningMatrix, calculateCMI2
+from .helpers import calculateMutualInformation, calculateCovariance, calculateEntropy, conditionalMutInfo, learningMatrix, calculateCMI2
 from .ipal import ipal
 
 def saute(X,y, numberOfChosenFeatures = 3, kNN = 4, kNNIpal=8,alpha=0.6,
@@ -22,40 +22,30 @@ def saute(X,y, numberOfChosenFeatures = 3, kNN = 4, kNNIpal=8,alpha=0.6,
     assert criterium in ('JMI','CIFE', 'original'), f'wrong criterium chosen'
     assert learningType in ('IPALall','IPALfrac' , 'original'), f'wrong learningType chosen'
 
-    sauteScores = {i:{'selectedFeatures':None,
-               'yUpdated': None} for i in range(maxIter)}
-    
+    # Step I: Initialize labeling confidence matrix and calculate mutual information
+    # between features
+
     # Extract features names
     features = range(0,X.shape[1])
 
-    # Number of labels
-    numberOfLables = y.shape[1]
-    targetLabels = range(numberOfLables)
-
-
     # Number of features and observations
     numberOfObservations = X.shape[0]
-    numberOfFeatures = X.shape[1]
-
 
     # calculate Mutual Information between variables
     MI = calculateMutualInformation(X)
-
 
     # create labeling confidence matrix
     yCount = np.sum(y, axis=1)[:, np.newaxis]
     Y = np.divide(y,yCount, dtype='float32')
 
+    # Step II: Iterative selection of a subset of variables and updating of the labeling confidence matrix
+
+    previousA = set()
 
     for iteration in range(maxIter):
-
-        print(f'iteration number: {iteration}',flush=True ,end=' ')
-
-
-        A = set()
+        
+        A = set() # start with empty set
         F_A = set(features) # set difference of F and A =: F \ A
-
-        previousA = set()
 
         # create affiliation matrix D:
         # D[i,j] = 1 if Y[i,j] >= 1/n_i, where n_i is a number of labels in his candidate label set  
@@ -70,7 +60,7 @@ def saute(X,y, numberOfChosenFeatures = 3, kNN = 4, kNNIpal=8,alpha=0.6,
         mask = sumD > 0
         mean[:, mask] = (X.T @ D[:, mask]) / sumD[mask]
 
-            
+        
 
         if criterium == 'original':
             # calculate standard devation 
@@ -83,37 +73,21 @@ def saute(X,y, numberOfChosenFeatures = 3, kNN = 4, kNNIpal=8,alpha=0.6,
             denominator = sumD[mask] - 1
             std[:, mask] = np.sqrt(numerator / denominator)
 
-                
-            #std = np.sqrt(((X**2).T @ D - ((X.T @ D)**2 / np.sum(D, axis=0)))/(np.sum(D, axis=0)-1))
-
 
         elif criterium == 'CIFE' or criterium == 'JMI':
             # calculate covariance
             cov = calculateCovariance(X, D)
             # extract standard devation from covariance matrix
             std = np.sqrt(np.einsum('...ii->...i', cov)).T
-        
+            # calculate conditional MI
+            CMI = conditionalMutInfo(cov, std)
 
         # calculate p(u) = 1/m * sum(i=1,..,m) of Y(i,u), where m = numberOfObservations
         labelsProbability = (np.sum(Y,axis=0))/numberOfObservations
-
   
         # calculate entropy
-        featuresEntropy, probs = calculateEntropy(X, D, mean, std, labelsProbability)
+        featuresEntropy, _ = calculateEntropy(X, D, mean, std, labelsProbability)
 
-
-
-        if criterium == 'CIFE' or criterium=='JMI':
-            #CMI = cmi(X,D, mean, cov, np.arange(len(targetLabels),dtype='int64'), probs, labelsProbability)
-            #CMI = condMutInfo(X, mean, cov, np.arange(len(targetLabels),dtype='int64'), probs, labelsProbability)
-            #conditionalMutInfo_numba
-
-            # idx = np.random.choice(numberOfObservations, size=saplesNo, replace=False)
-            
-            # newX = X[idx]
-            # newProbs = probs[:, idx,:]
-
-            CMI = alternativeMutInfo(cov, std)
 
         
         for _ in range(numberOfChosenFeatures):
@@ -121,7 +95,8 @@ def saute(X,y, numberOfChosenFeatures = 3, kNN = 4, kNNIpal=8,alpha=0.6,
             # update F_A
             F_A = F_A.difference(A)
 
-            # find feature maximizing criterium
+            # find feature maximizing given criterium
+            
             if criterium == 'original':
                 if len(A) == 0:
                     chosenFeature = np.argmax(-featuresEntropy)
@@ -135,6 +110,7 @@ def saute(X,y, numberOfChosenFeatures = 3, kNN = 4, kNNIpal=8,alpha=0.6,
                     scores = -featuresEntropy - (1/len(A))*sumMI
 
                     chosenFeature = np.argmax(scores)
+            
             elif criterium == 'CIFE':
                 if len(A) == 0:
                     chosenFeature = np.argmax(-featuresEntropy)
@@ -146,13 +122,12 @@ def saute(X,y, numberOfChosenFeatures = 3, kNN = 4, kNNIpal=8,alpha=0.6,
                     updatedCMI = CMI[list(A), :]
                     sumCMI = np.sum(updatedCMI, axis=0)
                         
-                    #featuresEntropy[chosenFeature] = np.inf
-
                     scores = -featuresEntropy - sumMI + sumCMI
 
                     scores[list(A)] = -np.inf
 
                     chosenFeature = np.argmax(scores)
+            
             elif criterium == 'JMI':
                 if len(A) == 0:
                     chosenFeature = np.argmax(-featuresEntropy)
@@ -164,8 +139,6 @@ def saute(X,y, numberOfChosenFeatures = 3, kNN = 4, kNNIpal=8,alpha=0.6,
                     updatedCMI = CMI[list(A), :]
                     sumCMI = np.sum(updatedCMI, axis=0)
                         
-                    #featuresEntropy[chosenFeature] = np.inf
-
                     scores = -featuresEntropy - (1/len(A))*sumMI + (1/len(A))*sumCMI
 
                     scores[list(A)] = -np.inf
@@ -176,7 +149,7 @@ def saute(X,y, numberOfChosenFeatures = 3, kNN = 4, kNNIpal=8,alpha=0.6,
             A.add(int(chosenFeature))
 
 
-        # after the above iteration A contains numberOfFeatures features
+        # Step 2a: Update labeling confidence matrix using learning matrix and selected subset of variables
 
         # Identify the 𝑘 nearest neighbors N(x_i) for all observations in 'smaller' dataset
 
@@ -213,18 +186,13 @@ def saute(X,y, numberOfChosenFeatures = 3, kNN = 4, kNNIpal=8,alpha=0.6,
 
             Y = Y/np.sum(Y,axis=1)[:, np.newaxis]
 
-        # update history
-        sauteScores[iteration]['selectedFeatures'] = list(A)
-        sauteScores[iteration]['yUpdated'] = np.copy(Y)
 
         if previousA == A:
-            break
+            break #stop if set didn't chang
 
         previousA = A
-
-    print('')
     
-    return sauteScores
+    return A, Y
 
 
 def sauteGPU(X,y,numberOfChosenFeatures = 3, kNN = 4,
@@ -249,21 +217,15 @@ def sauteGPU(X,y,numberOfChosenFeatures = 3, kNN = 4,
     assert criterium in ('JMI','CIFE', 'original'), f'wrong criterium chosen'
     assert learningType in ('IPALall','IPALfrac' , 'original'), f'wrong learningType chosen'
 
-    sauteScores = {i:{'selectedFeatures':None,
-               'yUpdated': None} for i in range(maxIter)}
+    # Step I: Initialize labeling confidence matrix and calculate mutual information
+    # between features
+
 
     # Extract features names
     features = range(0,X.shape[1])
 
-    # Number of labels
-    numberOfLables = y.shape[1]
-    targetLabels = range(numberOfLables)
-
-
     # Number of features and observations
     numberOfObservations = X.shape[0]
-    numberOfFeatures = X.shape[1]
-
 
     # calculate Mutual Information between variables
     MI = calculateMutualInformation(X)
@@ -273,18 +235,18 @@ def sauteGPU(X,y,numberOfChosenFeatures = 3, kNN = 4,
     yCount = np.sum(y, axis=1)[:, np.newaxis]
     Y = np.divide(y,yCount, dtype='float32')
 
+    # transer X to gpu (if available, if don't SAUTE function is recommended)
     Xtens = torch.from_numpy(X).to(dtype=torch.float32, device=device)
+
+    previousA = set()
+
+    # Step II: Iterative selection of a subset of variables and updating of the labeling confidence matrix
 
 
     for iteration in range(maxIter):
 
-        print(f'iteration number: {iteration}',flush=True ,end=' ')
-
-
         A = set()
         F_A = set(features) # set difference of F and A =: F \ A
-
-        previousA = set()
 
         # create affiliation matrix D:
         # D[i,j] = 1 if Y[i,j] >= 1/n_i, where n_i is a number of labels in his candidate label set  
@@ -332,15 +294,14 @@ def sauteGPU(X,y,numberOfChosenFeatures = 3, kNN = 4,
 
 
         if criterium == 'CIFE' or criterium=='JMI':
-
+            # tranfer to gpu
             meanTens = torch.from_numpy(mean).to(dtype=torch.float32, device=device)
             covTens= torch.from_numpy(cov).to(dtype=torch.float32, device=device)
             probsTens = torch.from_numpy(probs).to(dtype=torch.float32, device=device)
             labelsProbsTens =  torch.from_numpy(labelsProbability).to(dtype=torch.float32, device=device)
-
+            # calculate conditional mutual information on gpu
             CMItens = calculateCMI2(Xtens, meanTens, covTens, probsTens, labelsProbsTens)
-
-
+            # transfer back to cpu
             CMI = CMItens.detach().cpu().numpy()
 
 
@@ -401,7 +362,7 @@ def sauteGPU(X,y,numberOfChosenFeatures = 3, kNN = 4,
             A.add(int(chosenFeature))
 
 
-        # after the above iteration A contains numberOfFeatures features
+        # Step 2a: Update labeling confidence matrix using learning matrix and selected subset of variables
 
         # Identify the 𝑘 nearest neighbors N(x_i) for all observations in 'smaller' dataset
 
@@ -425,16 +386,9 @@ def sauteGPU(X,y,numberOfChosenFeatures = 3, kNN = 4,
         elif learningType == 'IPALall':
             _,__,Y = ipal(X=newTrainingSet, y=Y, knn=kNN, alpha=alphaIpal, iterNo=20)
 
-
-        # update history
-        sauteScores[iteration]['selectedFeatures'] = list(A)
-        sauteScores[iteration]['yUpdated'] = np.copy(Y)
-
         if previousA == A:
             break
 
         previousA = A
-
-    print('')
    
-    return sauteScores
+    return A, Y

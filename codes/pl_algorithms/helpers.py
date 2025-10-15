@@ -170,16 +170,57 @@ def calculateMutltivariateNormal(X0, X1, mean0, mean1, cov00,cov11,cov01):
 
     return prob
 
-def alternativeMutInfo(cov, std):
+def conditionalMutInfo(data, meanArray, covArray, labels, probs, labelsProb):
 
-    corrScore = np.empty(shape=cov.shape)
+    N,featuresNo = data.shape
 
-    for label in range(cov.shape[0]):
-        s = std[:,label]
-        sXY = np.outer(s, s)
-        score = cov[label, :, :] / sXY
-        np.fill_diagonal(score,0)
-        corrScore[label,:,:] = score
+    CMI = [[0 for _ in range(featuresNo)] for __ in range(featuresNo)]
+    
+
+    for feature1 in range(featuresNo):
+            
+        for feature2 in range(featuresNo):
+
+            if feature1 >= feature2:
+                continue
+            
+
+            X1 = data[:,feature1]
+
+
+            X2 = data[:,feature2]
+
+
+            X1mesh, X2mesh = np.meshgrid(X1, X2, indexing='ij') 
+            X1X2 = np.column_stack([X1mesh.ravel(), X2mesh.ravel()])
+
+            cmi=0
+            for label in labels:
+
+                cov = covArray[label]
+
+                probX1 = probs[label,:, feature1]    
+                probX2 = probs[label,:, feature2]
+                
+                probX1mesh, probX2mesh = np.meshgrid(probX1, probX2, indexing='ij') 
+                probX1X2 = np.column_stack([probX1mesh.ravel(), probX2mesh.ravel()])
+
+                meanX1X2 = meanArray[[feature1, feature2], label]
+
+                covX1X2 = cov[np.ix_([feature1, feature2],[feature1, feature2])]
+
+                probsCond = calculateMutltivariateNormal(X1X2, mean=meanX1X2, cov=covX1X2)
+                    
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    vals = probsCond*np.log2(probsCond/np.prod(probX1X2,axis=1))
+                    safeVals = np.where(np.isfinite(vals), vals, np.nan)
+                    result = np.nansum(safeVals) * labelsProb[label]
+                cmi += result
+                    
+            CMI[feature1][feature2] = cmi
         
-    corrScore = -0.5 * np.log2(1-(corrScore**2))    
-    return np.sum(corrScore, axis=0)
+    for i in range(featuresNo):
+        for j in range(i+1, featuresNo):
+            CMI[j][i] = CMI[i][j]
+    
+    return np.array(CMI)
