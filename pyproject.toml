@@ -5,8 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "saute-feature-selection"
 version = "0.1.0"
-description = "Implementation of an SAUTE feature selection algorithm prested in Submodular Feature Selection for Partial Label Learning (2022) W. Bao, J, Hang, M. Zhang 
-and it's modification presented in my bachelor thesis."
+description = "Implementation of an SAUTE feature selection algorithm prested in Submodular Feature Selection for Partial Label Learning (2022) W. Bao, J, Hang, M. Zhang and it's modification presented in my bachelor thesis."
 readme = "README.md"
 authors = [
     { name = "  Piotr Bartosiewicz", email = "piotr.bartosiewicz.ds@gmail.com" }
