@@ -192,7 +192,7 @@ def saute(X,y, numberOfChosenFeatures = 3, kNN = 4, kNNIpal=8,alpha=0.6,
 
         previousA = A
     
-    return A, Y
+    return list(A), Y
 
 
 def sauteGPU(X,y,numberOfChosenFeatures = 3, kNN = 4,
@@ -391,4 +391,4 @@ def sauteGPU(X,y,numberOfChosenFeatures = 3, kNN = 4,
 
         previousA = A
    
-    return A, Y
+    return list(A), Y
