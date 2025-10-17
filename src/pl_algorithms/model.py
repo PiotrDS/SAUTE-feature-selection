@@ -5,6 +5,9 @@ from .knn import knnPartialPredict
 from .ipal import predictIpal
 
 class Model:
+    '''
+    The Model class is implemented for classification and feature selection in Partial Label Learning.
+    '''
 
     def __init__(self, X, y_pl) -> None:
         self.X = X
@@ -20,22 +23,27 @@ class Model:
             
             if torch.cuda.is_available():
                 A, y_updated = sauteGPU(self.X, self.y_pl, vars_no,vars_no, kNN=knn, kNNIpal=knn_Ipal, alpha=alpha,
-                                        kNNIpal=alpha_Ipal,criterium=criterium,learningType=learning_type, 
-                                        max_iter=max_iter)
+                                        criterium=criterium,learningType=learning_type, 
+                                        maxIter=max_iter)
             else:
                 raise RuntimeError('CUDA-compatible device not detected.')
         
         else:
             
             A, y_updated = saute(self.X, self.y_pl, vars_no, kNN=knn, kNNIpal=knn_Ipal, alpha=alpha,
-                                        kNNIpal=alpha_Ipal,criterium=criterium,learningType=learning_type, 
-                                        max_iter=max_iter)
+                                        criterium=criterium,learningType=learning_type, 
+                                        maxIter=max_iter)
         
         self.y_confidence = y_updated
         self.selected_vars = A 
         return self.X[:, self.selected_vars]
         
     def knn_predict(self, X_new, knn=8, weight_type="order", use_selected_vars=False) -> np.array:
+
+        '''
+            Makes a classification for the set X_new using PL-KNN algorithm trained on self.X and self.y_pl.
+        '''
+
         if use_selected_vars:
             predictions = knnPartialPredict(self.X[:, self.selected_vars], X_new[:, self.selected_vars], self.y_pl, knn, weight_type)
         else:
@@ -45,6 +53,11 @@ class Model:
         
 
     def ipal_predict(self, X_new, knn=8, alpha=0.9, iter_no=20, use_selected_vars=False) -> np.array:
+
+        '''
+            Makes a classification for the set X_new using PL-KNN algorithm trained on self.X and self.y_pl.
+        '''
+        
         if use_selected_vars:
             predictions, _ = predictIpal(self.X[:, self.selected_vars], X_new[:, self.selected_vars], self.y_pl, knn, alpha, iter_no)
         else:

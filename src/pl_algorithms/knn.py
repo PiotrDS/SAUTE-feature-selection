@@ -1,15 +1,19 @@
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 
-def knnPartialPredict(XTrain,XTest,y,knn=10, weightsType='dist'):
+def knnPartialPredict(X,X_new,y,knn=10, weightsType='dist'):
+
     '''
-    Implementing knnClasifier for partial labeling problem,
-    Function returns index of label for each observation
+    KNN - Classifier for partial labeling problems.
+
+    This function implements a K-Nearest Neighbors classifier adapted for partial label learning.
+    Makes a classification for the set X_new using PL-KNN algorithm trained on X and y_pl.
+    It returns the index of the label for each observation.
     '''
     
     kNN = NearestNeighbors(n_neighbors=knn)
-    kNN.fit(XTrain)
-    distances, indices = kNN.kneighbors(XTest)
+    kNN.fit(X)
+    distances, indices = kNN.kneighbors(X_new)
     if weightsType == 'dist':
         weights = 1 - distances/np.sum(distances,axis=1)[:,None]
         Y = np.sum(y[indices]*weights[:,:,None], axis=1)
@@ -22,9 +26,13 @@ def knnPartialPredict(XTrain,XTest,y,knn=10, weightsType='dist'):
     return maxIndex
 
 def knnPartial(X,y,knn=10, firstNeighbour=True):
+    
     '''
-    Implementing knnClasifier for partial labeling problem,
-    Function returns index of label for each observation
+    KNNClassifier for partial labeling problems.
+
+    This class implements a K-Nearest Neighbors classifier adapted for partial label learning.
+    Makes a classification for the set X using PL-KNN algorithm trained on X and y_pl.
+    It returns the index of the label for each observation.
     '''
     
     kNN = NearestNeighbors(n_neighbors=knn)

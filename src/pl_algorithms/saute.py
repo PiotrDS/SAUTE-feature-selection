@@ -9,7 +9,7 @@ def saute(X,y, numberOfChosenFeatures = 3, kNN = 4, kNNIpal=8,alpha=0.6,
 
     '''
     Function saute is implementing feature selection 
-    algorithm - SAUTE
+    algorithm - SAUTE and it's modifications SAUTE-JMI, SAUTE-IPALALL, SAUTE-IPALFRAC
 
     input data: 
      X - dataset
@@ -19,8 +19,8 @@ def saute(X,y, numberOfChosenFeatures = 3, kNN = 4, kNNIpal=8,alpha=0.6,
      alpha - learning rate
     '''
 
-    assert criterium in ('JMI','CIFE', 'original'), f'wrong criterium chosen'
-    assert learningType in ('IPALall','IPALfrac' , 'original'), f'wrong learningType chosen'
+    assert criterium in ('JMI', 'original'), f'criterium {criterium} is wrong, should be one of "JMI", "original"'
+    assert learningType in ('IPALall','IPALfrac' , 'original'), f'learningType {learningType} is wrong, should be one of "IPALall", "IPALfrac" , "original"'
 
     # Step I: Initialize labeling confidence matrix and calculate mutual information
     # between features
@@ -171,10 +171,10 @@ def saute(X,y, numberOfChosenFeatures = 3, kNN = 4, kNNIpal=8,alpha=0.6,
             Y = Y/np.sum(Y,axis=1)[:, np.newaxis]
         
         elif learningType == 'IPALall':
-            _,__, Y = ipal(X=newTrainingSet, y=Y, knn=kNNIpal, alpha=alphaIpal, iterNo=20)
+            _,__, Y = ipal(X=newTrainingSet, y_pl=Y, knn=kNNIpal, alpha=alphaIpal, iterNo=20)
 
         elif learningType == 'IPALfrac':
-            _,__, L = ipal(X=newTrainingSet, y=Y, knn=kNNIpal, alpha=alphaIpal, iterNo=20)
+            _,__, L = ipal(X=newTrainingSet, y_pl=Y, knn=kNNIpal, alpha=alphaIpal, iterNo=20)
 
             # Update Y
 
@@ -202,7 +202,7 @@ def sauteGPU(X,y,numberOfChosenFeatures = 3, kNN = 4,
 
     '''
     Function saute is implementing feature selection
-    algorithm - SAUTE
+    algorithm - SAUTE it's modifications SAUTE-JMI, SAUTE-IPALALL, SAUTE-IPALFRAC
 
     input data:
      X - dataset
@@ -214,8 +214,10 @@ def sauteGPU(X,y,numberOfChosenFeatures = 3, kNN = 4,
 
     device = 'gpu' if torch.cuda.is_available() else 'cpu'
 
-    assert criterium in ('JMI','CIFE', 'original'), f'wrong criterium chosen'
-    assert learningType in ('IPALall','IPALfrac' , 'original'), f'wrong learningType chosen'
+
+    assert criterium in ('JMI', 'original'), f'criterium {criterium} is wrong, should be one of "JMI", "original"'
+    assert learningType in ('IPALall','IPALfrac' , 'original'), f'learningType {learningType} is wrong, should be one of "IPALall", "IPALfrac" , "original"'
+
 
     # Step I: Initialize labeling confidence matrix and calculate mutual information
     # between features
@@ -384,7 +386,7 @@ def sauteGPU(X,y,numberOfChosenFeatures = 3, kNN = 4,
             Y = Y/np.sum(Y,axis=1)[:, np.newaxis]
        
         elif learningType == 'IPALall':
-            _,__,Y = ipal(X=newTrainingSet, y=Y, knn=kNN, alpha=alphaIpal, iterNo=20)
+            _,__,Y = ipal(X=newTrainingSet, y_pl=Y, knn=kNN, alpha=alphaIpal, iterNo=20)
 
         if previousA == A:
             break

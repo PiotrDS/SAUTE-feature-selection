@@ -3,7 +3,13 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics import mutual_info_score
 import torch
 
+device = "gpu" if torch.cuda.is_available() else "cuda"
+
 def discretizeData(data):
+
+    '''
+    Discretize data using formula (11) from saute article.
+    '''
 
     numberOfObservation = data.shape[0]
 
@@ -45,6 +51,10 @@ def calculateMutualInformation(data):
 
 def learningMatrix(X,y,knn):
 
+    '''
+    Calculate learning matrix using formula (12) from saute article.
+    '''
+
     kNN = NearestNeighbors(n_neighbors=knn)
     kNN.fit(X)
     _, indices = kNN.kneighbors(X)
@@ -59,38 +69,30 @@ def calculateEntropy(data,D,meanMatrix, stdMatrix, labelsProbs):
     observationNo = data.shape[0]
         
     expandedData = data[None, :, :]       # (1, n, m)
-    expandedD = D.T[:, :, None]     # (q, n, 1)
 
-    # dataNew = expandedData * expandedD  # (q, n, m) niepotrzebne
     meanMatrixC = meanMatrix.T[:,None,:]
     stdMatrixC = stdMatrix.T[:,None,:]
-
 
     stdSafe = np.where(stdMatrixC > 0, stdMatrixC, 1) 
     xStandardized = np.where(stdMatrixC > 0, (expandedData - meanMatrixC) / stdSafe, 0)
     probs = np.where(stdMatrixC > 0 , (1 / (np.sqrt(2 * np.pi) * stdSafe)) * np.exp(-0.5 * xStandardized**2), 0)
 
-    #probs = probs*expandedD #ważne
-
     probsLabels = labelsProbs[:, None, None]
-
 
     denominator = np.sum(probsLabels*probs, axis=0)
     denominator = np.where(denominator != 0, denominator, 1)
     newProbs = probsLabels*probs/denominator
 
-
     ProbsSafe = np.where(newProbs > 0, newProbs, 1)
     newProbsSafe = np.where(newProbs > 0, ProbsSafe*np.log2(ProbsSafe), 0) 
     entropy = - (np.sum(np.sum(newProbsSafe, axis=0), axis=0)) /observationNo
 
-    #return probs, newProbs, entropy
     return entropy, probs
 
 def calculateCovariance(X, D):
 
     _,labelNo = D.shape
-    N, featureNo = X.shape
+    N, _ = X.shape
 
     covMatricies = [None for _ in range(labelNo)]
     for l in range(labelNo):
@@ -109,12 +111,11 @@ def calculateCovariance(X, D):
         covMatricies[l] = covMat
 
     return np.array(covMatricies)
-
+device
 def calculateCMI2(X, meanArray, covArray, probs, labelsProb):
 
     obsNo,featuresNo = X.shape
     labelNo = covArray.shape[0]
-    labels=range(labelNo)
 
     CMI = torch.zeros((featuresNo, featuresNo), device = device)
 
@@ -139,7 +140,7 @@ def calculateCMI2(X, meanArray, covArray, probs, labelsProb):
             pj = probs[:, :, j].unsqueeze(1)  # shape [L, 1,N]
 
 
-            mnorm = calculateMutltivariateNormal(xi, xj,meani, meanj, covii, covjj, covij) # [F,F,chunk1,chunk2]
+            mnorm = calculateMutltivariateNormal(xi, xj,meani, meanj, covii, covjj, covij) # shape [F,F,chunk1,chunk2]
                    
             temp = mnorm * (torch.log2(mnorm) - torch.log2(pi) - torch.log2(pj))
 

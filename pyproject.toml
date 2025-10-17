@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "saute-feature-selection"
+version = "0.1.0"
+description = "Implementation of an SAUTE feature selection algorithm prested in Submodular Feature Selection for Partial Label Learning (2022) W. Bao, J, Hang, M. Zhang 
+and it's modification presented in my bachelor thesis."
+readme = "README.md"
+authors = [
+    { name = "  Piotr Bartosiewicz", email = "piotr.bartosiewicz.ds@gmail.com" }
+]
+license = { text = "MIT" }
+requires-python = ">=3.9"
+
+dependencies = [
+    "numpy",
+    "scipy",
+    "pytorch",
+    "sklearn"
+]
+
+[project.urls]
+"Source" = "https://github.com/PiotrDS/SAUTE-feature-selection"
+"Documentation" = "https://github.com/PiotrDS/SAUTE-feature-selection"
+
+[tool.setuptools]
+packages = ["pl_algorithms"]
+package-dir = {"" = "src"}

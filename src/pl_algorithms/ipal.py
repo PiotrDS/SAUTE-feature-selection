@@ -2,7 +2,11 @@ import numpy as np
 import cvxpy as cp
 from sklearn.neighbors import NearestNeighbors
 
-def ipal(X,y, knn=10, alpha=0.95, iterNo=20):
+def ipal(X,y_pl, knn=10, alpha=0.95, iterNo=20):
+
+    '''
+    Function ipal implements the IPAL algorithm to resolve ambiguity in partial labels.
+    '''
 
     observationNo = X.shape[0]
 
@@ -18,8 +22,6 @@ def ipal(X,y, knn=10, alpha=0.95, iterNo=20):
     for observationIdx, idx in enumerate(indices):
 
         weightsNew = solveQuadr(observation=X[observationIdx, :], neighborsMatrix=X[idx, :])
-        # do sprawdzenia X[idx, :] 
-
 
         for j, i in enumerate(idx):
             W[i][observationIdx] = weightsNew[j,0]
@@ -32,8 +34,8 @@ def ipal(X,y, knn=10, alpha=0.95, iterNo=20):
     H = W @ invD
 
     # create labeling confidence matrix
-    yCount = np.sum(y, axis=1, keepdims=True)
-    P = np.divide(y,yCount) 
+    yCount = np.sum(y_pl, axis=1, keepdims=True)
+    P = np.divide(y_pl,yCount) 
 
     F = P
 
@@ -42,7 +44,7 @@ def ipal(X,y, knn=10, alpha=0.95, iterNo=20):
         F = alpha * H.T @ F + (1-alpha)*P
 
         #rescale F matrix
-        F =F * y
+        F =F * y_pl
         F = F / np.sum(F, axis=1, keepdims=True)
 
     Yprobs = np.sum(P, axis=0, keepdims=True) / np.sum(F, axis=0, keepdims=True) * F
@@ -52,24 +54,27 @@ def ipal(X,y, knn=10, alpha=0.95, iterNo=20):
     return Y, kNN, F
 
 
-def predictIpal(XTrain,XTest, yTrain, nn,alpha, iterNo=15):
+def predictIpal(X,X_new, y_pl, nn,alpha, iterNo=15):
 
-    YIpal, kNN, _ = ipal(XTrain, yTrain, nn, alpha, iterNo)
+    '''
+    Function predictIpals implements the IPAL algorithm to classify the set X_new using PL-KNN algorithm trained on X and y_pl..
+    '''
+
+    YIpal, kNN, _ = ipal(X, y_pl, nn, alpha, iterNo)
 
 
-    distances, indices = kNN.kneighbors(XTest)
+    _, indices = kNN.kneighbors(X_new)
 
-    observationNo = XTest.shape[0]    
-    labelsNo = yTrain.shape[1]
+    observationNo = X_new.shape[0]    
 
     yPred = [None for _ in range(observationNo)]
 
     for observationIdx, idx in enumerate(indices):
-        weights = solveQuadr(observation=XTest[observationIdx, :], neighborsMatrix=XTrain[idx, :])
+        weights = solveQuadr(observation=X_new[observationIdx, :], neighborsMatrix=X[idx, :])
 
-        labelsScores = {label: XTest[observationIdx].copy() for label in np.unique(YIpal[idx])}
+        labelsScores = {label: X_new[observationIdx].copy() for label in np.unique(YIpal[idx])}
         for (i,id) in enumerate(idx):
-            sumLabels = weights[i,:] * XTrain[id, :]
+            sumLabels = weights[i,:] * X[id, :]
             labelsScores[YIpal[id]] -= sumLabels
         for label,score in labelsScores.items():
             labelsScores[label] = np.sum(score*score)
@@ -81,6 +86,11 @@ def predictIpal(XTrain,XTest, yTrain, nn,alpha, iterNo=15):
 
 
 def solveQuadr(observation, neighborsMatrix):
+
+    '''
+    Function solveQuadr implements a solution for the quadratic-linear problem presented in the IPAL algorithm.
+    '''
+
     N, d = neighborsMatrix.shape 
 
     P = neighborsMatrix @ neighborsMatrix.T  
