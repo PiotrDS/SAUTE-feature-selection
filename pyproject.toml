@@ -16,13 +16,13 @@ requires-python = ">=3.9"
 dependencies = [
     "numpy",
     "scipy",
-    "pytorch",
-    "sklearn"
+    "torch",
+    "scikit-learn"
 ]
 
 [project.urls]
-"Source" = "https://github.com/PiotrDS/SAUTE-feature-selection"
-"Documentation" = "https://github.com/PiotrDS/SAUTE-feature-selection"
+Source = "https://github.com/PiotrDS/SAUTE-feature-selection"
+Documentation = "https://github.com/PiotrDS/SAUTE-feature-selection"
 
 [tool.setuptools]
 packages = ["pl_algorithms"]
