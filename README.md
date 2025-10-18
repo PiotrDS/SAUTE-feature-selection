@@ -1,2 +1,2 @@
-# 🤖 SAUTE - feature selection algorithm for partial label labeling 🤖
+# 🤖 SAUTE - feature selection algorithm for partial label learning 🤖
 
