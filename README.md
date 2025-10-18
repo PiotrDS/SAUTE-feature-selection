@@ -25,5 +25,5 @@ pip install git+https://github.com/PiotrDS/SAUTE-feature-selection.git
 
 ## Examples
 
-##Licence
+## Licence
 MIT license
